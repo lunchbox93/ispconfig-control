@@ -1,0 +1,53 @@
+---
+- hosts: all
+  become: yes
+  tasks:
+
+  - name: apt-get update
+    apt:
+      update_cache: yes
+  - name: apt-get upgrade
+    apt:
+      name: "*"
+      state: latest
+  - name: Remove useless packages from the cache
+    apt:
+      autoclean: yes
+  - name: Remove useless packages from the system
+    apt:
+      autoremove: yes
+  - name: install software
+    apt:
+      name: net-tools,nano,iftop,ntp,zsh,unzip,unrar,wget,curl,build-essential,git,git-core,fonts-powerline,certbot,software-properties-common
+      update_cache: yes
+  - name: Remove unwanted packages
+    apt:
+      name: bind,sendmail,apparmor-utils,bind9
+      state: absent
+
+  - name: add user lunchbox
+    ansible.builtin.user:
+      name: lunchbox
+      comment: default user
+      shell: /bin/zsh
+      uid: 1040
+      group: sudo
+      generate_ssh_key: yes
+      ssh_key_bits: 2048
+      ssh_key_file: .ssh/id_rsa
+
+  - name: install public keys
+    ansible.posix.authorized_key:
+      user: "{{ lookup('env','USER') }}"
+      state: present
+      key: "{{ lookup('file', '~/.ssh/id_rsa.pub') }}"
+  - name: change sudoers file
+    lineinfile:
+      path: /etc/sudoers
+      state: present
+      regexp: '^%sudo'
+      line: '%sudo ALL=(ALL) NOPASSWD: ALL'
+      validate: /usr/sbin/visudo -cf %s
+  - name: Set timezone to America/Chicago
+    community.general.timezone:
+      name: America/Chicago
